@@ -1,0 +1,2 @@
+continents_data <- read.csv("continents-according-to-our-world-in-data.csv")
+head(continents_data)
