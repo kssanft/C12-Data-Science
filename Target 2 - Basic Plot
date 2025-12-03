@@ -1,0 +1,48 @@
+library(tidyverse)
+neet <- read_csv('youth-not-in-education-employment-training.csv')
+continents <- read_csv("continents-according-to-our-world-in-data.csv")
+
+#clean the dataset: neet
+neet_new <- neet %>%
+  rename(neet_share = 'Share of youth not in education, employment or training, total (% of youth population)') %>%
+  filter(!is.na(neet_share)) %>%
+  filter(!is.na(Code)) %>%
+  select(Code, Year, neet_share)
+
+#clean the dataset: continents
+continents_new <- continents %>%
+  select(Code, Continent) %>%
+  filter(!is.na(Continent))
+
+# neat share linked to continents
+neet_jointed <- neet_new %>%
+  left_join(continents_new, by = 'Code')
+
+#find the mean of the NEET rate for every continent every year, exclude Antarctica 
+
+neet_continent_year <- neet_jointed %>%
+  filter(Continent != 'Antarctica') %>%
+  group_by(Continent, Year) %>%
+  summarise(neet_share_mean = mean(neet_share, na.rm = TRUE)) %>% 
+  ungroup()
+
+neet_world <- neet_new %>%
+  group_by(Year) %>%
+  summarise(neet_share_mean = mean(neet_share, na.rm = TRUE)) %>%
+  ungroup()
+
+
+
+ggplot() +
+  #graph for continents
+  geom_line(data = neet_continent_year,
+            aes(x = Year, y = neet_share_mean, colour = Continent, group = Continent),
+            linewidth = 0.8) +
+  #graph for the world average, represented by thicker line in black
+  geom_line(data = neet_world,
+            aes(x = Year, y = neet_share_mean),
+            linewidth = 1.4, colour = "black") +
+  labs( title  = "NEET Rate Over Time: Continents vs World(in black)",
+    x = "Year",
+    y = "NEET (% of youth population)",
+    colour = "Continent") + theme_minimal()
