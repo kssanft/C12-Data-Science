@@ -1,0 +1,114 @@
+---
+title: "R Notebook"
+output: html_notebook
+
+
+---
+
+This is just a rough overview of plot 1 in R Notebook form. Firstly, we need to install our various packages as well as load any libraries needed 
+
+```{r}
+#install.packages("tidyverse")
+#install.packages("ggthemes")
+setwd("C:/Users/sheri/OneDrive/Desktop/Data Science Yr 1/Coursework/data sets")
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(ggthemes)
+```
+
+Now, we can begin by downloading our CSV dataset files and having a quick look at that data that we have been provided as well as the additional csv file that that data on population.
+
+```{r}
+gdp_per_capita <- read.csv("gdp-per-capita-worldbank.csv", stringsAsFactors = F)
+continents <- read.csv("continents-according-to-our-world-in-data.csv", stringsAsFactors = F)
+population_data <- read.csv("Population.csv", stringsAsFactors = F, skip = 3)
+
+View(gdp_per_capita)
+View(continents)
+View(population_data)
+```
+
+Now we need to clean the Population csv file. When viewing the file, we noticed that the columns containing the years contains an X preceding it so we used gsub() to remove it. 
+
+We also removed the last column as all its values are NA, as well as using the mutate function to ensure that values in Year and Population are stored as numeric. In addition, the gather function has been used to convert the data into a long format, and columns have been named to match those in the other csv files. Finally, The drop_na() method has been used to remove all rows that contain missing values. 
+
+```{r}
+colnames(population_data) <- gsub("^X", "", colnames(population_data))
+population_data <-  population_data[,-70]
+#View(population_data)
+population_long <- population_data %>%
+  gather (key = "Year", value = "Population", `1960`:`2024`) %>%
+  mutate(
+    Year = as.numeric(Year),
+    Population = as.numeric(Population)
+  ) %>%
+  rename (
+    Entity = Country.Name,
+    Code = Country.Code
+  ) %>%
+  drop_na()
+
+View(population_long)
+```
+
+After loading the data, we also created a new dataframe called "gdp_per_capita2" that uses left_join to combine the the data sets together by matching up the data with the same country code. 
+
+After grouping by Continent and Year, the weighted average of the GDP is also calculated by using the weighted.mean() function and stored in the dataframe "avg_gdp".
+
+Another dataframe is also created, "continent_growth", which includes a new column indicating each country's annual GDP growth rate. We grouped the data by continent and sorted it using the arrange() function, before calculating this value as the percentage change from the previous year's GDP using the mutate() and lag() functions. Additionally, because the lag() function produces an NA for the first year of each country (since there is no previous value to compare to), we removed these missing values before continuing our analysis.
+
+
+```{r}
+
+gdp_per_capita2 <- gdp_per_capita %>%
+  rename(GDP_capita = GDP.per.capita..PPP..constant.2017.international... ) %>%
+  left_join (continents %>% select (Code, Continent), by = "Code") %>%
+  left_join (population_long %>% select (Code, Year, Population), by = c("Code", "Year")) %>%
+  drop_na()
+
+avg_gdp <- gdp_per_capita2 %>%
+  group_by(Continent, Year) %>%
+  summarise( 
+    weighted_gdp = weighted.mean (GDP_capita, w = Population, na.rm = TRUE)
+  ) 
+  
+#View(gdp_per_capita2)
+
+continent_growth <- avg_gdp %>%
+  group_by(Continent) %>%
+  arrange(Year, Continent) %>%
+  mutate(
+    weighted_gdp_growth = (weighted_gdp - lag(weighted_gdp)) /
+      lag(weighted_gdp) * 100
+  ) %>%
+  drop_na
+
+View(continent_growth)
+```
+
+Using this cleaned up dataset, we plotted how the weighted GDP per capita growth rate has changed over time for each continent, connecting the scatter plot data to see the overall trends. Additionally, we customized the plot by adding a title, axis labels, as well as applying a manual color scale so that every country has it's own distinct color associated with it. The resulting figure clearly illustrates how GDP growth has varied across continents over time, which helps us identify differences in economic performance.
+
+```{r}
+ggplot(continent_growth, aes(x = Year, y = weighted_gdp_growth, color = Continent)) +
+  geom_line(linewidth = 1.25) +
+  labs(
+    title = "Weighted GDP per Capita Growth Rate by Continent Over Time",
+    x = "Year",
+    y = "Weighted GDP per Capita Growth Rate (%)"
+  ) +
+  scale_colour_manual(values = c("Africa" = "#F5A623", 
+                                 "Asia" = "#b90a07",
+                                 "Europe" ="#008F39" ,
+                                 "North America" ="#015294",
+                                 "Oceania" = "#7B1FA2",
+                                 "South America" = "#E91E63"
+                                 )) +
+  theme_economist_white() +
+  theme(
+    text = element_text(size = 11),
+    legend.title = element_text(size = 8),
+    legend.text = element_text(size = 10)
+  )
+```
+From this graph, we can see a few clear downturns in the Average GDP per capita growth rate, particularly right before 2010, and during 2020. These points clearly align with the global crisises happening at the time, with the 2008 Market crash (affecting Europe and North America the most notably), as well as the COVID-19 pandemic which affected every continent in 2020.
