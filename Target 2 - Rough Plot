@@ -1,0 +1,36 @@
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+
+continents <- read.csv("continents-according-to-our-world-in-data.csv")
+youth <- read.csv("youth-not-in-education-employment-training.csv")
+
+# We must create out complete data set for comparison so we first join the youth data and the continents data to group countries by continents. Next, we rename the necessary columns appropriately before removing the unnecessary columns. Then, we ensure the quantitative data is in numeric form rather than string form. Finally we must filter out all the rows before 2021 since the target is only interested in years up to 2020.
+
+complete <- inner_join(youth, continents, by = "Entity") %>% 
+  rename("Country" = "Entity") %>% 
+  mutate(
+    "Year" = as.numeric(Year.x),
+    "Youth_Unemployment" = as.numeric(Share.of.youth.not.in.education..employment.or.training..total....of.youth.population.)
+  ) %>% 
+  select(c("Country", "Year", "Youth_Unemployment", "Continent")) %>% 
+  filter(Year < 2021)
+
+# We must now create the plot data which we are going to use, which consists of the average youth unemployment percentage for each continent by year.
+
+plot_data <- complete %>% 
+  group_by(Year, Continent) %>% 
+  summarise(mean_share = mean(Youth_Unemployment, na.rm = TRUE))
+
+# Next we create the plot of a line graph showing the average youth unemployment rate for each continent to get an overarching idea of their situations.  
+
+plot1 <- plot_data %>% 
+  ggplot(aes(x = Year, y = mean_share, colour = Continent)) +
+  geom_line() +
+  geom_point() +
+  xlab("Year") +
+  ylab("Percentage of Youth not in Education, Employment, or Training") +
+  ggtitle("Changing Share of Youth Unemployment by Continent") +
+  scale_colour_manual(values = c("Africa" = "orange", "Europe" = "blue", "North America" = "red", "South America" = "darkgreen", "Oceania" = "skyblue", "Asia" = "purple")) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
