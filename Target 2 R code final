@@ -1,0 +1,325 @@
+install.packages("tidyverse")
+install.packages("ggthemes")
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(ggthemes)
+
+# Annual NEET data for each country
+neet <- read_csv('youth-not-in-education-employment-training.csv')
+# Which continent each country belongs to
+continents <- read_csv("continents-according-to-our-world-in-data.csv")
+# GDP data for each country
+gdp_per_capita <- read.csv("gdp-per-capita-worldbank.csv")
+
+# Clean the dataset: continents
+continents_new <- continents %>%
+  select(Code, Continent) %>%
+  filter(!is.na(Continent))
+
+# Clean the dataset: GDP per capita
+gdp_w_continents <- gdp_per_capita %>%
+  rename(GDP = GDP.per.capita..PPP..constant.2017.international... ) %>%
+  left_join(continents_new, by = "Code") %>%
+  drop_na()
+
+# Classify into Low / Medium / High
+gdp_annual_dev_tertiles <- gdp_w_continents %>%
+  filter(!is.na(GDP)) %>%
+  group_by(Year) %>%
+  mutate(
+    Development = case_when(
+      ntile(GDP, 3) == 1 ~ "Low",
+      ntile(GDP, 3) == 2 ~ "Medium",
+      TRUE               ~ "High"
+    )
+  ) %>%
+  ungroup() %>%
+  mutate(
+    Development = factor(Development,
+                         levels = c("Low", "Medium", "High"))
+  )
+
+
+# Clean the dataset: neet
+neet_new <- neet %>%
+  rename(neet_share = 'Share of youth not in education, employment or training, total (% of youth population)') %>%
+  filter(!is.na(neet_share)) %>%
+  filter(!is.na(Code)) %>%
+  select(Code, Year, neet_share) %>% 
+  filter(Year < 2021)
+
+
+# Link each NEET observation with the corresponding continent
+neet_jointed <- neet_new %>%
+  left_join(continents_new, by = 'Code')
+
+
+
+
+# NEET averaged by continent and year (excluding Antarctica) 
+neet_continent_year <- neet_jointed %>%
+  filter(Continent != 'Antarctica') %>%
+  group_by(Continent, Year) %>%
+  summarise(neet_share_mean = mean(neet_share, na.rm = TRUE)) %>% 
+  ungroup()
+
+# Global NEET mean
+neet_world <- neet_new %>%
+  group_by(Year) %>%
+  summarise(neet_share_mean = mean(neet_share, na.rm = TRUE)) %>%
+  ungroup()
+
+
+# First plot: Line graph showing the change of NEET over time with the global average level
+ggplot() +
+  #graph for continents
+  geom_line(data = neet_continent_year,
+            aes(x = Year, y = neet_share_mean, colour = Continent, group = Continent),
+            linewidth = 0.8) +
+  #graph for the world average, represented by thicker line in black
+  geom_line(data = neet_world,
+            aes(x = Year, y = neet_share_mean),
+            linewidth = 1.4, colour = "black") +
+  labs( title  = 'NEET Rate Over Time: Continents vs World(in black)',
+        x = 'Year',
+        y = 'NEET (% of youth population)',
+        colour = 'Continent') +
+  scale_colour_manual(values = c("Africa" = "#F5A623", 
+                                 "Asia" = "#b90a07",
+                                 "Europe" ="#008F39" ,
+                                 "North America" ="#015294",
+                                 "Oceania" = "#7B1FA2",
+                                 "South America" = "#E91E63"
+  )) +
+  theme_economist_white() +
+  theme(
+    text = element_text(size = 11),
+    legend.title = element_text(size = 11),
+    legend.text = element_text(size = 10)
+  )
+
+
+# Years where NEET data is available for all continents (making comparisons more accurate)
+n_continents <- neet_continent_year %>% distinct(Continent) %>% nrow()
+common_years <- neet_continent_year %>%
+  group_by(Year) %>%
+  summarise(n_cont = n_distinct(Continent), .groups = 'drop') %>%
+  filter(n_cont == n_continents) %>%   
+  pull(Year)
+
+
+# Filter out
+neet_continent_common <- neet_continent_year %>% filter(Year %in% common_years)
+neet_world_common <- neet_world %>% filter(Year %in% common_years)
+
+
+# Plot2: NEET trend chart for these shared years
+ggplot() +
+  geom_line(data = neet_continent_common,
+            aes(x = Year, y = neet_share_mean, colour = Continent, group = Continent),
+            linewidth = 0.8) +
+  geom_line(data = neet_world_common,
+            aes(x = Year, y = neet_share_mean),
+            linewidth = 1.4, colour = "black") +
+  labs(
+    title  = 'NEET Rate Over Time: Continents vs World (Common Years for All Continents)',
+    x = 'Year',
+    y = 'NEET (% of youth population)',
+    colour = 'Continent'
+  ) +
+  scale_colour_manual(values = c("Africa" = "#F5A623", 
+                                 "Asia" = "#b90a07",
+                                 "Europe" ="#008F39" ,
+                                 "North America" ="#015294",
+                                 "Oceania" = "#7B1FA2",
+                                 "South America" = "#E91E63"
+  )) +
+  theme_economist_white() +
+  theme(
+    text = element_text(size = 11),
+    legend.title = element_text(size = 11),
+    legend.text = element_text(size = 10)
+  )
+
+# Merge NEET with GDP Development classification (Low/Medium/High)
+neet_dev <- neet_jointed %>%
+  left_join(
+    gdp_annual_dev_tertiles %>% select(Code, Year, Development),
+    by = c("Code", "Year"))
+
+neet_dev_summary <- neet_dev %>%
+  filter(!is.na(Development)) %>%
+  filter(Continent != "Antarctica") %>%
+  filter(Year %in% common_years) %>%
+  group_by(Continent, Development, Year) %>%
+  summarise(neet_mean = mean(neet_share, na.rm = TRUE), .groups = "drop")
+
+
+# Plot for each continents
+continents_list <- unique(neet_dev_summary$Continent)
+
+
+for (ct in continents_list) {
+  p <- neet_dev_summary %>%
+    filter(Continent == ct) %>%
+    ggplot(aes(x = Year, y = neet_mean, colour = Development)) +
+    geom_line(linewidth = 0.9) +
+    labs(
+      title = paste("NEET Trend by Development Level in", ct),
+      x = "Year",
+      y = "Mean NEET (%)",
+      colour = "Development Level"
+    ) +
+    scale_colour_manual(values = c(
+      "Low" = "#1b9e77",
+      "Medium" = "#d95f02",
+      "High" = "#7570b3"
+    )) +
+    theme_economist_white() +
+    theme(
+      text = element_text(size = 11),
+      legend.title = element_text(size = 11),
+      legend.text = element_text(size = 10)
+    )
+  
+  print(p)
+}
+
+
+# Calculate how much NEET changes from earliest to latest for each continent
+neet_change <- neet_continent_common %>%
+  group_by(Continent) %>%
+  summarise(
+    first_year = min(Year),
+    last_year = max(Year),
+    neet_first = neet_share_mean[Year == first_year],
+    neet_last  = neet_share_mean[Year == last_year],
+    change = neet_last - neet_first,
+    slope = (neet_last - neet_first) / (last_year - first_year) ) %>%
+  mutate(status = case_when(
+    change <= -5 ~ 'Substantial decrease',
+    change > -5 & change < 5 ~ 'Little or no change',
+    change >= 5 ~ 'Increase'))
+
+print(neet_change)
+
+
+# Import additional file: Employment-to-Population Ratio
+youth_unemp <- read.csv( 'API_SL.UEM.1524.ZS_DS2_en_csv_v2_6444.csv',
+  stringsAsFactors = FALSE, 
+  skip = 3)
+
+
+# Cleaned and converted to tidy format
+youth_unemp_tidy <- youth_unemp %>%
+  pivot_longer(cols = matches('^X[0-9]{4}$'),
+               names_to = 'Year',
+               values_to = 'youth_unemp_rate') %>%
+  mutate( Year = as.numeric(sub('X', '', Year))) %>%
+  select(Country.Code, Year, youth_unemp_rate) %>%
+  filter(!is.na(youth_unemp_rate)) %>%
+  rename(Code = 'Country.Code')
+
+
+# Merge NEET + Youth Unemployment
+merged_data <- neet_jointed %>%
+  left_join(youth_unemp_tidy, by = c('Code', 'Year'))
+
+# Correlation between NEET and Employment
+# g for global and c for continents
+correlation_g <- merged_data %>%
+  filter(!is.na(neet_share)) %>%
+  filter(!is.na(youth_unemp_rate)) %>%
+  summarise(correlation = cor(neet_share, youth_unemp_rate))
+
+print(correlation_g)
+
+correlation_c <- merged_data %>%
+  filter(!is.na(neet_share)) %>%
+  filter(!is.na(youth_unemp_rate)) %>%
+  filter(Continent != 'Antarctica') %>%
+  group_by(Continent) %>%
+  summarise(correlation = cor(neet_share, youth_unemp_rate))
+
+print(correlation_c)
+
+# Plot3: Relationship between NEET and employment rates in each continent.
+ggplot(merged_data, aes(x = youth_unemp_rate, y = neet_share, colour = Continent)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = 'Relationship Between Youth Unemployment and NEET Rate',
+       x = 'Youth Unemployment Rate (%)',
+       y = 'NEET Rate (%)') +
+  scale_colour_manual(values = c("Africa" = "#F5A623", 
+                                 "Asia" = "#b90a07",
+                                 "Europe" ="#008F39" ,
+                                 "North America" ="#015294",
+                                 "Oceania" = "#7B1FA2",
+                                 "South America" = "#E91E63"
+  )) +
+  theme_economist_white() +
+  theme(
+    text = element_text(size = 11),
+    legend.title = element_text(size = 11),
+    legend.text = element_text(size = 10)
+  )
+
+
+# Average trend of employment rate by state
+youth_unemp_c <- merged_data %>%
+  filter(!is.na(youth_unemp_rate), Continent != 'Antarctica') %>%
+  group_by(Continent, Year) %>%
+  summarise(youth_unemp_mean = mean(youth_unemp_rate, na.rm = TRUE)) %>%
+  ungroup()
+
+
+# Plot4: employment rate trend and calculate the magnitude of change
+ggplot(youth_unemp_c,
+       aes(x = Year, y = youth_unemp_mean, colour = Continent, group = Continent)) +
+  geom_line(linewidth = 0.8) +
+  geom_point(size = 0.8) +
+  labs(
+    title = "Employment-to-Population Ratio Over Time by Continent",
+    x = "Year",
+    y = "Employment Rate (%)",
+    colour = "Continent") +
+  scale_colour_manual(values = c("Africa" = "#F5A623", 
+                                 "Asia" = "#b90a07",
+                                 "Europe" ="#008F39" ,
+                                 "North America" ="#015294",
+                                 "Oceania" = "#7B1FA2",
+                                 "South America" = "#E91E63"
+  )) +
+  theme_economist_white() +
+  theme(
+    text = element_text(size = 11),
+    legend.title = element_text(size = 11),
+    legend.text = element_text(size = 10)
+  )
+
+
+# Calculate magnitude of youth unemployment change (for comparison with NEET)
+youth_unemp_change <- youth_unemp_c %>%
+  group_by(Continent) %>%
+  summarise(
+    first_year = min(Year),
+    last_year = max(Year),
+    unemp_first = youth_unemp_mean[Year == first_year],
+    unemp_last  = youth_unemp_mean[Year == last_year],
+    change = unemp_last - unemp_first,
+    slope = (unemp_last - unemp_first) / (last_year - first_year)
+  )
+
+print(youth_unemp_change)
+
+# Comparison table: NEET vs Youth Unemployment
+comparison <- neet_change %>%
+  select(Continent, neet_change = change, neet_slope = slope) %>%
+  left_join(
+    youth_unemp_change %>%
+      select(Continent, unemp_change = change, unemp_slope = slope),
+    by = 'Continent'
+  )
+
+print(comparison)
