@@ -1,4 +1,10 @@
+install.packages("tidyverse")
+install.packages("ggthemes")
 library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(ggthemes)
+
 neet <- read_csv('youth-not-in-education-employment-training.csv')
 continents <- read_csv("continents-according-to-our-world-in-data.csv")
 
