@@ -18,7 +18,7 @@ neet_new <- neet %>%
   filter(!is.na(neet_share)) %>%
   filter(!is.na(Code)) %>%
   select(Code, Year, neet_share %>% 
-  filter(Year < 2021)
+  filter(Year < 2021))
 
 # Clean the dataset: continents
 continents_new <- continents %>%
