@@ -17,7 +17,8 @@ neet_new <- neet %>%
   rename(neet_share = 'Share of youth not in education, employment or training, total (% of youth population)') %>%
   filter(!is.na(neet_share)) %>%
   filter(!is.na(Code)) %>%
-  select(Code, Year, neet_share)
+  select(Code, Year, neet_share %>% 
+  filter(Year < 2021)
 
 # Clean the dataset: continents
 continents_new <- continents %>%
