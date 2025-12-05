@@ -72,7 +72,7 @@ plot_continent <- function(continent_name) {
   
   ggplot(tertile_growth, aes(x = Year, y = weighted_gdp_growth, color = Development, group = Development)) +
     geom_line(linewidth = 1.25) +
-    geom_hline(yintercept=7, linetype="dashed", color = "black", size = 1) +
+    geom_hline(yintercept=7, linetype="dashed", color = "black", linewidth = 1) +
     annotate("text", x = max(tertile_growth$Year), y = 7, label = "7%", 
              color = "black",vjust = -0.5, hjust = 1.1, size = 4) +
     labs(
@@ -94,9 +94,70 @@ plot_continent <- function(continent_name) {
     )
 }
 
+
 plot_continent("Europe")
 plot_continent("Asia")
 plot_continent("Africa")
 plot_continent("North America")
 plot_continent("South America")
 plot_continent("Oceania")
+
+
+low_growth <- tertile_growth %>%
+  filter(Development == "Low")
+
+
+ggplot(low_growth, aes(x = Year, y = weighted_gdp_growth, color = Continent, group = Continent)) +
+  geom_line(linewidth = 1.25) +
+  geom_hline(yintercept = 7, linetype = "dashed", color = "black", linewidth = 1) +
+  annotate("text", x = max(low_growth$Year), y = 7, label = "7%", 
+           color = "black", vjust = -0.5, hjust = 1.1, size = 4) +
+  labs(
+    title = "Weighted GDP Growth Rate - Low Development",
+    x = "Year",
+    y = "Weighted GDP per Capita Growth Rate (%)"
+  ) +
+  scale_colour_manual(values = c("Africa" = "#F5A623",
+                                  "Asia" = "#B90A07",
+                                  "Europe" = "#008F39",
+                                  "North America" = "#015294",
+                                  "Oceania" = "#7B1FA2",
+                                  "South America" = "#E91E63"
+  )) +
+  theme_economist_white() +
+  theme(
+    text = element_text(size = 11),
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 10),
+    axis.title.y = element_text(margin = margin(r = 10))
+  )
+
+#Version without Europe - more zoomed in 
+low_growth2 <- tertile_growth %>%
+  filter(Development == "Low" & Continent != "Europe")
+
+
+ggplot(low_growth2, aes(x = Year, y = weighted_gdp_growth, color = Continent, group = Continent)) +
+  geom_line(linewidth = 1.25) +
+  geom_hline(yintercept = 7, linetype = "dashed", color = "black", linewidth = 1) +
+  annotate("text", x = max(low_growth2$Year), y = 7, label = "7%", 
+           color = "black", vjust = -0.5, hjust = 1.1, size = 4) +
+  labs(
+    title = "Weighted GDP Growth Rate - Low Development",
+    x = "Year",
+    y = "Weighted GDP per Capita Growth Rate (%)"
+  ) +
+  scale_colour_manual(values = c("Africa" = "#F5A623",
+                                 "Asia" = "#B90A07",
+                                 "North America" = "#015294",
+                                 "Oceania" = "#7B1FA2",
+                                 "South America" = "#E91E63"
+  )) +
+  theme_economist_white() +
+  theme(
+    text = element_text(size = 11),
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 10),
+    axis.title.y = element_text(margin = margin(r = 10))
+  )
+
