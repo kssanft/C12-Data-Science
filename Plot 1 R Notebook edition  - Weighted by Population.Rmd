@@ -5,12 +5,10 @@ output: html_notebook
 
 ---
 
-This is just a rough overview of plot 1 in R Notebook form. Firstly, we need to install our various packages as well as load any libraries needed 
+Firstly, we need to install our various packages as well as load any libraries needed.
 
 ```{r}
-#install.packages("tidyverse")
-#install.packages("ggthemes")
-setwd("C:/Users/sheri/OneDrive/Desktop/Data Science Yr 1/Coursework/data sets")
+
 library(tidyverse)
 library(ggplot2)
 library(dplyr)
@@ -18,6 +16,8 @@ library(ggthemes)
 ```
 
 Now, we can begin by downloading our CSV dataset files and having a quick look at that data that we have been provided as well as the additional csv file that that data on population.
+
+The additional csv files have text in the first three rows which we do not require, therefore we use "skip =" to skip past these and begin reading the files at line 3.
 
 ```{r}
 gdp_per_capita <- read.csv("gdp-per-capita-worldbank.csv", stringsAsFactors = F)
@@ -93,7 +93,7 @@ Using this cleaned up dataset, we plotted how the weighted GDP per capita growth
 ggplot(continent_growth, aes(x = Year, y = weighted_gdp_growth, color = Continent)) +
   geom_line(linewidth = 1.25) +
   labs(
-    title = "Weighted GDP per Capita Growth Rate by Continent Over Time",
+    title = "Evolution of Weighted GDP per Capita Growth Rate",
     x = "Year",
     y = "Weighted GDP per Capita Growth Rate (%)"
   ) +
@@ -107,8 +107,9 @@ ggplot(continent_growth, aes(x = Year, y = weighted_gdp_growth, color = Continen
   theme_economist_white() +
   theme(
     text = element_text(size = 11),
-    legend.title = element_text(size = 8),
-    legend.text = element_text(size = 10)
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 10),
+    axis.title.y = element_text(margin = margin(r = 10))
   )
 ```
-From this graph, we can see a few clear downturns in the Average GDP per capita growth rate, particularly right before 2010, and during 2020. These points clearly align with the global crisises happening at the time, with the 2008 Market crash (affecting Europe and North America the most notably), as well as the COVID-19 pandemic which affected every continent in 2020.
+From this graph, we can see a few clear downturns in the Average GDP per capita growth rate, particularly right before 2010, and during 2020. These points clearly align with the global crises happening at the time, with the 2008 Market crash (affecting Europe and North America the most notably), as well as the COVID-19 pandemic which affected every continent in 2020.
