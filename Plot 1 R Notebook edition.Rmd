@@ -20,8 +20,8 @@ Now, we can begin by downloading our CSV dataset files and having a quick look a
 gdp_per_capita <- read.csv("gdp-per-capita-worldbank.csv")
 continents <- read.csv("continents-according-to-our-world-in-data.csv")
 
-View(gdp_per_capita)
-View(continents)
+#View(gdp_per_capita)
+#View(continents)
 ```
 
 After loading the data, we created a new dataframe called "gdp_per_capita2" that includes a new column indicating each country's annual GDP growth rate. We calculated this value as the percentage change from the previous year's GDP using the mutate() and lag() functions. From this, we were able to combine the two data sets together using left join and matching up the data with the same country code. Additionally, because the lag() function produces an NA for the first year of each country (since there is no previous value to compare to), we removed these missing values before continuing our analysis.
@@ -70,4 +70,46 @@ ggplot(continent_growth, aes(x = Year, y = avg_GDP_growth, color = Continent)) +
     legend.text = element_text(size = 10)
   )
 ```
+
 From this graph, we can see a few clear downturns in the Average GDP per capita growth rate, particularly right before 2010, and during 2020. These points clearly align with the global crisises happening at the time, with the 2008 Market crash (affecting Europe and North America the most notably), as well as the COVID-19 pandemic which affected every continent in 2020.
+
+
+Now we will plot the average GDP growth rate over time as a heat map, using Plotly. ##ADD MORE EXPLANATION##
+```{r}
+
+
+country_growth <- gdp_per_capita2 %>%
+  drop_na(GDP_growth_rate)       
+
+#View(country_growth)
+
+country_growth$hover <- with(country_growth,paste( 
+         "<br> Country: ",Entity, "<br>",
+         "Continent: ", Continent, "<br>",
+         "GDP Growth: ", round(GDP_growth_rate, 2), "%" ))
+
+g <- list(
+  showframe = FALSE,
+  showcoastlines = FALSE,
+  projection = list(type = 'Mercator')
+)
+
+
+p <- plot_geo(country_growth, locationmode = "world") %>%
+  add_trace(
+    text = ~ hover,
+    hoverinfo = "text",
+    locations =  ~ Code,           
+    z =  ~ GDP_growth_rate,    
+    frame =  ~ Year,           
+    color =  ~ GDP_growth_rate,     
+    colors = "PuOr",        
+    marker = list(line = list(colour = toRGB ("grey"), width = 0.5))
+  ) %>%
+  colorbar(title = "GDP Growth (%)") %>%
+  layout( title = "Annual GDP per Capita Growth by Country",
+          geo = g)
+p
+
+
+```
